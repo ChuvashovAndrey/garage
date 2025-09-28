@@ -1,0 +1,590 @@
+<!-- /home/andrey/Projects/garage/templates/index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный Гараж</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .sensor-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .button {
+            width: 100%;
+            padding: 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        
+        .button:active {
+            transform: scale(0.98);
+        }
+        
+        .button.success {
+            background: #28a745;
+        }
+        
+        .button.danger {
+            background: #dc3545;
+        }
+        
+        .button.warning {
+            background: #ffc107;
+            color: black;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .online {
+            background: #28a745;
+        }
+        
+        .offline {
+            background: #dc3545;
+        }
+        
+        .last-update {
+            font-size: 0.8em;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        /* Стили для управления светом */
+        .brightness-control {
+            margin: 15px 0;
+        }
+        
+        .brightness-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .brightness-value {
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .light-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #ffc107;
+            box-shadow: 0 0 10px #ffc107;
+            transition: all 0.3s ease;
+        }
+        
+        .light-off {
+            background: #6c757d;
+            box-shadow: none;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .control-group .button {
+            flex: 1;
+        }
+        
+        .sensor-info {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        
+        .info-item {
+            text-align: center;
+            padding: 5px;
+        }
+        
+        .info-label {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .info-value {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Умный Гараж</h1>
+            <div class="status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Подключение...</span>
+            </div>
+        </div>
+        
+        <!-- Карточка температуры и влажности -->
+        <div class="card">
+            <h3>🌡️ Температура и влажность</h3>
+            <div class="sensor-value" id="temperature">--°C</div>
+            <div style="text-align: center;">Влажность: <span id="humidity">--%</span></div>
+        </div>
+        
+        <!-- Карточка состояния ворот -->
+        <div class="card">
+            <h3>🚪 Состояние ворот</h3>
+            <div class="sensor-value" id="door-status">--</div>
+            <button class="button" onclick="controlDoor()" id="door-button">
+                Открыть/Закрыть ворота
+            </button>
+        </div>
+        
+        <!-- Карточка детектора движения -->
+        <div class="card">
+            <h3>👥 Детектор движения</h3>
+            <div class="sensor-value" id="motion-status">--</div>
+            <button class="button success" onclick="simulateMotion()">
+                Симулировать движение
+            </button>
+        </div>
+        
+        <!-- Карточка управления светом -->
+        <div class="card">
+            <h3>
+                <span class="light-indicator" id="light-indicator"></span>
+                💡 Управление светом
+            </h3>
+            <div class="sensor-value" id="light-status">--</div>
+            <div class="brightness-value" id="brightness-value">Яркость: --%</div>
+            
+            <div class="brightness-control">
+                <input type="range" min="0" max="100" value="0" class="brightness-slider" id="brightness-slider" onchange="setBrightness(this.value)">
+                <div class="control-group">
+                    <button class="button warning" onclick="setBrightness(25)">25%</button>
+                    <button class="button warning" onclick="setBrightness(50)">50%</button>
+                    <button class="button warning" onclick="setBrightness(75)">75%</button>
+                    <button class="button warning" onclick="setBrightness(100)">100%</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <button class="button success" onclick="turnLightOn()" id="light-on-button">
+                    Включить свет
+                </button>
+                <button class="button danger" onclick="turnLightOff()" id="light-off-button">
+                    Выключить свет
+                </button>
+            </div>
+            
+            <button class="button" onclick="toggleLight()" id="light-toggle-button">
+                Переключить свет
+            </button>
+        </div>
+
+        <!-- Карточка системной информации -->
+        <div class="card">
+            <h3>📊 Системная информация</h3>
+            <div class="sensor-info">
+                <div class="info-item">
+                    <div class="info-label">Обновлено</div>
+                    <div class="info-value" id="last-update-time">--:--</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Состояние</div>
+                    <div class="info-value" id="system-status">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="last-update">
+            Последнее обновление: <span id="last-update">--:--</span>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let isConnected = false;
+        
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function() {
+                console.log('WebSocket connected');
+                updateStatus(true);
+            };
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateDashboard(data);
+            };
+            
+            socket.onclose = function() {
+                console.log('WebSocket disconnected');
+                updateStatus(false);
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateStatus(false);
+            };
+        }
+        
+        function updateStatus(connected) {
+            isConnected = connected;
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            if (connected) {
+                dot.className = 'status-dot online';
+                text.textContent = 'Онлайн';
+                text.style.color = '#28a745';
+            } else {
+                dot.className = 'status-dot offline';
+                text.textContent = 'Оффлайн';
+                text.style.color = '#dc3545';
+            }
+        }
+        
+        function updateDashboard(data) {
+            // Температура и влажность
+            document.getElementById('temperature').textContent = 
+                data.temperature ? data.temperature.toFixed(1) + '°C' : '--°C';
+            document.getElementById('humidity').textContent = 
+                data.humidity ? data.humidity.toFixed(1) + '%' : '--%';
+            
+            // Состояние ворот
+            const doorStatus = document.getElementById('door-status');
+            const doorButton = document.getElementById('door-button');
+            if (data.door_open !== undefined) {
+                doorStatus.textContent = data.door_open ? 'ОТКРЫТО' : 'ЗАКРЫТО';
+                doorStatus.style.color = data.door_open ? '#dc3545' : '#28a745';
+                doorButton.textContent = data.door_open ? 'Закрыть ворота' : 'Открыть ворота';
+            }
+            
+            // Детектор движения
+            const motionStatus = document.getElementById('motion-status');
+            if (data.motion_detected !== undefined) {
+                motionStatus.textContent = data.motion_detected ? 'ОБНАРУЖЕНО' : 'НЕТ';
+                motionStatus.style.color = data.motion_detected ? '#dc3545' : '#28a745';
+            }
+            
+            // Управление светом
+            updateLightControls(data);
+            
+            // Время последнего обновления
+            if (data.last_update) {
+                const date = new Date(data.last_update);
+                document.getElementById('last-update').textContent = 
+                    date.toLocaleTimeString();
+                document.getElementById('last-update-time').textContent = 
+                    date.toLocaleTimeString();
+            }
+            
+            // Общий статус системы
+            updateSystemStatus(data);
+        }
+        
+        function updateLightControls(data) {
+            const lightStatus = document.getElementById('light-status');
+            const lightIndicator = document.getElementById('light-indicator');
+            const brightnessValue = document.getElementById('brightness-value');
+            const brightnessSlider = document.getElementById('brightness-slider');
+            const lightOnButton = document.getElementById('light-on-button');
+            const lightOffButton = document.getElementById('light-off-button');
+            const lightToggleButton = document.getElementById('light-toggle-button');
+            
+            if (data.light_on !== undefined) {
+                // Статус света
+                lightStatus.textContent = data.light_on ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН';
+                lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
+                
+                // Индикатор света
+                lightIndicator.className = data.light_on ? 'light-indicator' : 'light-indicator light-off';
+                
+                // Яркость
+                const brightness = data.light_brightness || 0;
+                brightnessValue.textContent = `Яркость: ${brightness}%`;
+                brightnessValue.style.color = data.light_on ? '#ffc107' : '#6c757d';
+                
+                // Слайдер яркости
+                brightnessSlider.value = brightness;
+                brightnessSlider.disabled = !data.light_on;
+                
+                // Состояние кнопок
+                lightOnButton.disabled = data.light_on;
+                lightOffButton.disabled = !data.light_on;
+                lightToggleButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
+                lightToggleButton.className = data.light_on ? 'button danger' : 'button success';
+                
+                // Анимация индикатора при включении
+                if (data.light_on) {
+                    lightIndicator.style.animation = 'pulse 1s infinite';
+                } else {
+                    lightIndicator.style.animation = 'none';
+                }
+            }
+        }
+        
+        function updateSystemStatus(data) {
+            const systemStatus = document.getElementById('system-status');
+            let statusText = 'НОРМА';
+            let statusColor = '#28a745';
+            
+            if (data.door_open && data.motion_detected) {
+                statusText = 'ВНИМАНИЕ';
+                statusColor = '#ffc107';
+            } else if (data.door_open) {
+                statusText = 'ОТКРЫТО';
+                statusColor = '#dc3545';
+            } else if (data.motion_detected) {
+                statusText = 'ДВИЖЕНИЕ';
+                statusColor = '#ffc107';
+            }
+            
+            systemStatus.textContent = statusText;
+            systemStatus.style.color = statusColor;
+        }
+        
+        // Функции управления дверью
+        async function controlDoor() {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/control/door', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Door control result:', result);
+                
+            } catch (error) {
+                console.error('Error controlling door:', error);
+                alert('Ошибка управления воротами');
+            }
+        }
+        
+        // Функции управления светом
+        async function toggleLight() {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/control/light', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Light toggle result:', result);
+                
+            } catch (error) {
+                console.error('Error toggling light:', error);
+                alert('Ошибка переключения света');
+            }
+        }
+        
+        async function turnLightOn() {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/control/light/on', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Light ON result:', result);
+                
+            } catch (error) {
+                console.error('Error turning light on:', error);
+                alert('Ошибка включения света');
+            }
+        }
+        
+        async function turnLightOff() {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/control/light/off', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Light OFF result:', result);
+                
+            } catch (error) {
+                console.error('Error turning light off:', error);
+                alert('Ошибка выключения света');
+            }
+        }
+        
+        async function setBrightness(brightness) {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/control/light/brightness', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ brightness: parseInt(brightness) })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Brightness set result:', result);
+                
+            } catch (error) {
+                console.error('Error setting brightness:', error);
+                alert('Ошибка установки яркости');
+            }
+        }
+        
+        async function simulateMotion() {
+            if (!isConnected) {
+                alert('Нет соединения с сервером');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/simulate/motion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network error');
+                }
+                
+                const result = await response.json();
+                console.log('Motion simulation result:', result);
+                
+            } catch (error) {
+                console.error('Error simulating motion:', error);
+                alert('Ошибка симуляции движения');
+            }
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            
+            // Добавляем CSS анимацию для индикатора света
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html>

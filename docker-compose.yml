@@ -1,0 +1,31 @@
+# /home/andrey/Projects/garage/docker-compose.yml
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - garage-network
+
+  garage-web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_HOST=mosquitto
+    networks:
+      - garage-network
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+networks:
+  garage-network:
+    driver: bridge

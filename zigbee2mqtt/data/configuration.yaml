@@ -1,0 +1,14 @@
+# /home/andrey/Projects/garage/zigbee2mqtt/data/configuration.yaml
+homeassistant: true
+permit_join: true
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+serial:
+  port: null
+frontend:
+  port: 8080
+  host: 0.0.0.0
+advanced:
+  network_key: GENERATE_NEW_KEY
+  log_level: info
