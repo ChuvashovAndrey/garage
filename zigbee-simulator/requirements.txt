@@ -1,0 +1,2 @@
+# /home/andrey/Projects/garage/zigbee-simulator/requirements.txt
+paho-mqtt==1.6.1

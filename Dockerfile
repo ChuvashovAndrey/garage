@@ -1,20 +1,20 @@
-# /home/andrey/Projects/garage/Dockerfile
 FROM python:3.11
 
 WORKDIR /app
 
-# Копируем requirements.txt
-COPY requirements.txt .
+# Устанавливаем зависимости вручную
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn[standard]==0.24.0 \
+    paho-mqtt==1.6.1 \
+    jinja2==3.1.2 \
+    psutil==5.9.6 \
+    websockets==12.0
 
-# Устанавливаем Python зависимости
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Копируем остальные файлы
 COPY . .
 
-# Создаем необходимые папки
 RUN mkdir -p templates static
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000", "--ws", "websockets"]
