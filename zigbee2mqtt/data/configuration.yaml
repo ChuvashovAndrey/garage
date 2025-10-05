@@ -1,14 +1,37 @@
-# /home/andrey/Projects/garage/zigbee2mqtt/data/configuration.yaml
-homeassistant: true
-permit_join: true
+homeassistant:
+  enabled: true
 mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://mosquitto:1883
 serial:
-  port: null
+  port: /dev/ttyUSB0
+  adapter: ezsp
+  baudrate: 115200
 frontend:
+  enabled: true
   port: 8080
   host: 0.0.0.0
 advanced:
-  network_key: GENERATE_NEW_KEY
+  network_key:
+    - 253
+    - 166
+    - 64
+    - 72
+    - 186
+    - 140
+    - 113
+    - 142
+    - 49
+    - 75
+    - 56
+    - 223
+    - 67
+    - 79
+    - 193
+    - 164
   log_level: info
+  channel: 11
+version: 4
+devices:
+  '0xa4c1386e2399139d':
+    friendly_name: '0xa4c1386e2399139d'

@@ -1,8 +1,7 @@
-# /home/andrey/Projects/garage/docker-compose.yml
+# docker-compose.yml
 version: '3.8'
 
 services:
-  # MQTT брокер
   mosquitto:
     image: eclipse-mosquitto:2.0
     ports:
@@ -13,29 +12,42 @@ services:
     networks:
       - garage-network
 
-  # Симулятор Zigbee устройств
-  zigbee-simulator:
-    build: 
-      context: ./zigbee-simulator
-      dockerfile: Dockerfile
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:latest
+    ports:
+      - "8080:8080"
     environment:
-      - MQTT_HOST=mosquitto
+      - TZ=Europe/Moscow
+    volumes:
+      - ./zigbee2mqtt/data:/app/data
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"  # Раскомментировать!
     depends_on:
       - mosquitto
     networks:
       - garage-network
     restart: unless-stopped
 
-  # Веб-интерфейс
-  garage-web:
-    build: .
+  backend:
+    build: ./backend
     ports:
-      - "5000:5000"
-    depends_on:
-      - mosquitto
-      - zigbee-simulator
+      - "8000:8000"
     environment:
       - MQTT_HOST=mosquitto
+    depends_on:
+      - mosquitto
+      - zigbee2mqtt
+    networks:
+      - garage-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5000:5000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
     networks:
       - garage-network
 

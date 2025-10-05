@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Умный Гараж</title>
+    <title>Умный Гараж - Real Zigbee</title>
     <style>
         * {
             box-sizing: border-box;
@@ -131,6 +131,13 @@
             width: 100%;
             margin: 10px 0;
         }
+        
+        .device-status {
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -150,6 +157,7 @@
             <h3>🌡️ Температура и влажность</h3>
             <div class="sensor-value" id="temperature">--°C</div>
             <div style="text-align: center;">Влажность: <span id="humidity">--%</span></div>
+            <div class="device-status" id="temp-device-status">Датчик температуры: --</div>
         </div>
         
         <div class="card">
@@ -158,14 +166,13 @@
             <button class="button" onclick="controlDoor()" id="door-button">
                 Открыть/Закрыть ворота
             </button>
+            <div class="device-status" id="door-device-status">Датчик двери: --</div>
         </div>
         
         <div class="card">
             <h3>👥 Детектор движения</h3>
             <div class="sensor-value" id="motion-status">--</div>
-            <button class="button success" onclick="simulateMotion()">
-                Симулировать движение
-            </button>
+            <div class="device-status" id="motion-device-status">Датчик движения: --</div>
         </div>
         
         <div class="card">
@@ -184,6 +191,7 @@
             <button class="button warning" onclick="controlLight()" id="light-button">
                 Включить свет
             </button>
+            <div class="device-status" id="light-device-status">Выключатель света: --</div>
         </div>
         
         <div class="last-update">
@@ -195,15 +203,15 @@
         let socket = null;
         let isConnected = false;
         let garage_state = {};
+        const backendUrl = "http://localhost:8000";
 
         function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            const wsUrl = `ws://${window.location.hostname}:8000/ws`;
             
             socket = new WebSocket(wsUrl);
             
             socket.onopen = function() {
-                console.log('WebSocket connected');
+                console.log('WebSocket connected to backend');
                 updateStatus(true);
             };
             
@@ -231,7 +239,7 @@
             
             if (connected) {
                 dot.className = 'status-dot online';
-                text.textContent = 'Онлайн';
+                text.textContent = 'Онлайн (Zigbee)';
                 text.style.color = '#28a745';
             } else {
                 dot.className = 'status-dot offline';
@@ -327,7 +335,7 @@
             }
             
             try {
-                const response = await fetch('/api/control/door', {
+                const response = await fetch(backendUrl + '/api/control/door', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -355,7 +363,7 @@
             }
             
             try {
-                const response = await fetch('/api/control/light', {
+                const response = await fetch(backendUrl + '/api/control/light', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -380,15 +388,12 @@
             if (!isConnected) return;
             
             try {
-                // Конвертируем проценты в значение от 0 до 255
-                const brightness = Math.round((percent / 100) * 255);
-                
-                const response = await fetch('/api/control/light_brightness', {
+                const response = await fetch(backendUrl + '/api/control/light_brightness', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ brightness: brightness })
+                    body: JSON.stringify({ brightness: Math.round((percent / 100) * 255) })
                 });
                 
                 const result = await response.json();
@@ -396,41 +401,11 @@
                     console.log('Brightness set to:', percent + '%');
                 } else {
                     console.error('Brightness control error:', result.message);
-                    // Возвращаем ползунок на предыдущее значение
                     updateBrightnessDisplay();
                 }
             } catch (error) {
                 console.error('Error setting brightness:', error);
-                // Возвращаем ползунок на предыдущее значение
                 updateBrightnessDisplay();
-            }
-        }
-        
-        async function simulateMotion() {
-            if (!isConnected) {
-                alert('Нет соединения с сервером');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/simulate/motion', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    console.log('Motion simulation result:', result);
-                } else {
-                    alert('Ошибка: ' + result.message);
-                }
-                
-            } catch (error) {
-                console.error('Error simulating motion:', error);
-                alert('Ошибка симуляции движения');
             }
         }
         
