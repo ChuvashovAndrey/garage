@@ -1,5 +1,5 @@
 # docker-compose.yml
-version: '3.8'
+#version: '3.8'
 
 services:
   mosquitto:
@@ -8,7 +8,7 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
     networks:
       - garage-network
 
