@@ -20,9 +20,13 @@ garage_state = {
     "temperature": 20.0,
     "humidity": 45.0,
     "door_open": False,
+    "door_battery": 100,           # Новое поле
+    "door_linkquality": 0,         # Новое поле  
+    "door_device_id": "0xa4c138ffcbf1c3aa",  # Новое поле
     "motion_detected": False,
     "light_on": False,
     "light_brightness": 0,
+    "water_leak": False,
     "last_update": None,
     "system_info": {
         "cpu_percent": 0,
@@ -74,36 +78,51 @@ def on_mqtt_connect(client, userdata, flags, rc):
 
 def on_mqtt_message(client, userdata, msg):
     try:
-     payload = json.loads(msg.payload.decode())
-     topic = msg.topic
-     
-     # Обрабатываем события подключения/отключения устройств
-     if "bridge/event" in topic:
-         event_type = payload.get("type", "")
-         
-         if event_type == "device_joined":
-             device_data = payload.get("data", {})
-             if device_data.get("ieee_address") == "0xa4c1386e2399139d":
-                 logger.info("🎉 Датчик температуры подключился к сети!")
-                 garage_state["sensor_online"] = True
-         
-         elif event_type == "device_leave":
-             device_data = payload.get("data", {})
-             if device_data.get("ieee_address") == "0xa4c1386e2399139d":
-                 logger.warning("⚠️ Датчик температуры отключился от сети!")
-                 garage_state["sensor_online"] = False
-     
-     # Обрабатываем данные от датчика температуры
-     elif "0xa4c1386e2399139d" in topic:
-         logger.info(f"📊 Данные от датчика: {payload}")
-         
-         # Автоматически определяем тип датчика по данным
-         process_temperature_sensor_data(payload)
-     
-     # Остальная обработка...
-     
+        payload = json.loads(msg.payload.decode())
+        topic = msg.topic
+        logger.info(f"📨 MQTT сообщение: {topic} -> {payload}")
+        
+        # Определяем тип устройства по payload, а не по названию топика
+
+
+        if "temperature" in payload:
+            garage_state["temperature"] = payload.get("temperature", garage_state["temperature"])
+            garage_state["humidity"] = payload.get("humidity", garage_state["humidity"])
+            logger.info(f"🌡️ Обновлена температура: {garage_state['temperature']}°C")
+            
+        # Обрабатываем данные от конкретного датчика двери
+        elif "0xa4c138ffcbf1c3aa" in topic:  # Ваш конкретный датчик
+            garage_state["door_open"] = not payload.get("contact", True)
+            garage_state["door_battery"] = payload.get("battery", 100)
+            garage_state["door_linkquality"] = payload.get("linkquality", 0)  
+            door_status = "открыта" if garage_state["door_open"] else "закрыта"
+            logger.info(f"🚪 Обновлено состояние двери: {door_status}")
+            
+        elif "occupancy" in payload:
+            garage_state["motion_detected"] = payload.get("occupancy", False)
+            logger.info(f"👤 Обновлено движение: {'обнаружено' if garage_state['motion_detected'] else 'нет'}")
+            
+        elif "state" in payload or "brightness" in payload:
+            garage_state["light_on"] = payload.get("state", "OFF") == "ON"
+            garage_state["light_brightness"] = payload.get("brightness", 0)
+            logger.info(f"💡 Обновлен свет: {'включен' if garage_state['light_on'] else 'выключен'}")
+            
+        elif "water_leak" in payload:
+            garage_state["water_leak"] = payload.get("water_leak", False)
+            if garage_state["water_leak"]:
+                logger.warning("🚨 ОБНАРУЖЕНА ПРОТЕЧКА ВОДЫ!")
+            else:
+                logger.info("💧 Протечки воды нет")
+        
+        # Всегда обновляем время последнего обновления
+        garage_state["system_info"] = get_system_info()
+        garage_state["last_update"] = datetime.now().isoformat()
+        
+        # Рассылаем обновление
+        run_async_in_mqtt_thread(broadcast_to_clients(garage_state.copy()))
+        
     except Exception as e:
-        logger.error(f"❌ Ошибка обработки MQTT: {e}")
+        logger.error(f"❌ Ошибка обработки MQTT сообщения: {e}")
 
 def process_temperature_sensor_data(payload):
     """Обработка данных датчика температуры"""
@@ -296,7 +315,13 @@ async def get_devices():
             "temperature_sensor",
             "door_sensor", 
             "motion_sensor",
-            "light_switch"
+            "light_switch",
+            "door_sensor": {
+                "id": garage_state.get("door_device_id", "unknown"),
+                "battery": garage_state.get("door_battery", 0),
+                "linkquality": garage_state.get("door_linkquality", 0),
+                "status": "open" if garage_state.get("door_open") else "closed"
+            }
         ]
     }
 

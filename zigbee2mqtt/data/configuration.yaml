@@ -34,5 +34,9 @@ advanced:
   channel: 11
 version: 4
 devices:
-  '0xa4c1386e2399139d':
-    friendly_name: '0xa4c1386e2399139d'
+  '0xa4c1388f19f5a677':
+    friendly_name: '0xa4c1388f19f5a677'
+  '0xa4c13833fff3d106':
+    friendly_name: '0xa4c13833fff3d106'
+  '0xa4c138ffcbf1c3aa':
+    friendly_name: '0xa4c138ffcbf1c3aa'

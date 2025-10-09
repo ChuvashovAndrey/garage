@@ -138,6 +138,25 @@
             text-align: center;
             margin-top: 5px;
         }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        .sensor-info {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .sensor-info div {
+            margin: 5px 0;
+        }
+
     </style>
 </head>
 <body>
@@ -163,10 +182,17 @@
         <div class="card">
             <h3>🚪 Состояние ворот</h3>
             <div class="sensor-value" id="door-status">--</div>
+            
+            <!-- Добавляем информацию о датчике -->
+            <div class="sensor-info">
+                <div>Батарея: <span id="door-battery">--%</span></div>
+                <div>Качество связи: <span id="door-linkquality">--</span></div>
+                <div style="font-size: 0.8em; color: #666;">ID: <span id="door-device-id">--</span></div>
+            </div>
+            
             <button class="button" onclick="controlDoor()" id="door-button">
                 Открыть/Закрыть ворота
             </button>
-            <div class="device-status" id="door-device-status">Датчик двери: --</div>
         </div>
         
         <div class="card">
@@ -174,7 +200,13 @@
             <div class="sensor-value" id="motion-status">--</div>
             <div class="device-status" id="motion-device-status">Датчик движения: --</div>
         </div>
-        
+
+        <div class="card">
+            <h3>💧 Датчик протечки воды</h3>
+            <div class="sensor-value" id="water-leak-status">--</div>
+            <div class="device-status" id="water-device-status">Датчик воды: --</div>
+        </div>
+
         <div class="card">
             <h3>💡 Управление светом</h3>
             <div class="sensor-value" id="light-status">--</div>
@@ -258,13 +290,31 @@
             document.getElementById('humidity').textContent = 
                 data.humidity ? data.humidity.toFixed(1) + '%' : '--%';
             
-            // Состояние ворот
+            // Состояние ворот с дополнительной информацией
             const doorStatus = document.getElementById('door-status');
             const doorButton = document.getElementById('door-button');
+            const doorBattery = document.getElementById('door-battery');
+            const doorLinkquality = document.getElementById('door-linkquality');
+            const doorDeviceId = document.getElementById('door-device-id');
             if (data.door_open !== undefined) {
                 doorStatus.textContent = data.door_open ? 'ОТКРЫТО' : 'ЗАКРЫТО';
                 doorStatus.style.color = data.door_open ? '#dc3545' : '#28a745';
                 doorButton.textContent = data.door_open ? 'Закрыть ворота' : 'Открыть ворота';
+                // Дополнительная информация
+                if (data.door_battery !== undefined) {
+                    doorBattery.textContent = data.door_battery + '%';
+                    doorBattery.style.color = data.door_battery > 20 ? '#28a745' : '#dc3545';
+                }
+                if (data.door_linkquality !== undefined) {
+                    doorLinkquality.textContent = data.door_linkquality;
+                    const quality = data.door_linkquality;
+                    doorLinkquality.style.color = 
+                        quality > 200 ? '#28a745' : 
+                        quality > 100 ? '#ffc107' : '#dc3545';
+                }
+                if (data.door_device_id) {
+                    doorDeviceId.textContent = data.door_device_id;
+                }
             }
             
             // Детектор движения
@@ -272,6 +322,20 @@
             if (data.motion_detected !== undefined) {
                 motionStatus.textContent = data.motion_detected ? 'ОБНАРУЖЕНО' : 'НЕТ';
                 motionStatus.style.color = data.motion_detected ? '#dc3545' : '#28a745';
+            }
+
+            // Датчик протечки
+            const waterLeakStatus = document.getElementById('water-leak-status');
+            if (data.water_leak !== undefined) {
+                waterLeakStatus.textContent = data.water_leak ? 'ОБНАРУЖЕНО!' : 'НОРМА';
+                waterLeakStatus.style.color = data.water_leak ? '#dc3545' : '#28a745';
+                waterLeakStatus.style.fontSize = data.water_leak ? '2em' : '2.5em';
+                if (data.water_leak) {
+                    // Мигающий эффект при протечке
+                    waterLeakStatus.style.animation = 'blink 1s infinite';
+                } else {
+                    waterLeakStatus.style.animation = 'none';
+                }
             }
             
             // Состояние света
