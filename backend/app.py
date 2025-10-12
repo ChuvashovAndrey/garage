@@ -19,14 +19,25 @@ logger = logging.getLogger(__name__)
 garage_state = {
     "temperature": 20.0,
     "humidity": 45.0,
+    "temperature_battery": 100,           # Новое поле - батарея датчика температуры
+    "temperature_linkquality": 0,         # Новое поле - уровень сигнала датчика температуры
+    "temperature_device_id": "temperature_sensor",  # Новое поле - ID датчика температуры
     "door_open": False,
-    "door_battery": 100,           # Новое поле
-    "door_linkquality": 0,         # Новое поле  
-    "door_device_id": "0xa4c138ffcbf1c3aa",  # Новое поле
+    "door_battery": 100,           
+    "door_linkquality": 0,    
+    "door_device_id": "door_sensor",
     "motion_detected": False,
+    "motion_battery": 100,           # Новое поле - батарея датчика движения
+    "motion_linkquality": 0,         # Новое поле - уровень сигнала датчика движения
+    "motion_device_id": "motion_sensor",  # Новое поле - ID датчика движения
     "light_on": False,
     "light_brightness": 0,
-    "water_leak": False,
+    "water_leak_1": False,           # Новое поле - датчик протечки 1
+    "water_battery_1": 100,          # Батарея датчика 1
+    "water_device_id_1": "water_leak_1",         # ID датчика 1
+    "water_leak_2": False,           # Новое поле - датчик протечки 2  
+    "water_battery_2": 100,          # Батарея датчика 2
+    "water_device_id_2": "water_leak_2",         # ID датчика 2
     "last_update": None,
     "system_info": {
         "cpu_percent": 0,
@@ -84,14 +95,15 @@ def on_mqtt_message(client, userdata, msg):
         
         # Определяем тип устройства по payload, а не по названию топика
 
-
         if "temperature" in payload:
             garage_state["temperature"] = payload.get("temperature", garage_state["temperature"])
             garage_state["humidity"] = payload.get("humidity", garage_state["humidity"])
+            garage_state["temperature_battery"] = payload.get("battery", garage_state["temperature_battery"])  # Добавлено
+            garage_state["temperature_linkquality"] = payload.get("linkquality", garage_state["temperature_linkquality"])  # Добавлено
             logger.info(f"🌡️ Обновлена температура: {garage_state['temperature']}°C")
             
         # Обрабатываем данные от конкретного датчика двери
-        elif "0xa4c138ffcbf1c3aa" in topic:  # Ваш конкретный датчик
+        elif "door_sensor" in topic:  # Ваш конкретный датчик
             garage_state["door_open"] = not payload.get("contact", True)
             garage_state["door_battery"] = payload.get("battery", 100)
             garage_state["door_linkquality"] = payload.get("linkquality", 0)  
@@ -100,19 +112,30 @@ def on_mqtt_message(client, userdata, msg):
             
         elif "occupancy" in payload:
             garage_state["motion_detected"] = payload.get("occupancy", False)
-            logger.info(f"👤 Обновлено движение: {'обнаружено' if garage_state['motion_detected'] else 'нет'}")
+            garage_state["motion_battery"] = payload.get("battery", garage_state["motion_battery"])
+            garage_state["motion_linkquality"] = payload.get("linkquality", garage_state["motion_linkquality"])
+            garage_state["motion_device_id"] = topic.split('/')[-1]  # Берем ID из топика
+            logger.info(f"👤 Обновлено движение: {'обнаружено' if garage_state['motion_detected'] else 'нет'}, батарея: {garage_state['motion_battery']}%, сигнал: {garage_state['motion_linkquality']}")
             
         elif "state" in payload or "brightness" in payload:
             garage_state["light_on"] = payload.get("state", "OFF") == "ON"
             garage_state["light_brightness"] = payload.get("brightness", 0)
             logger.info(f"💡 Обновлен свет: {'включен' if garage_state['light_on'] else 'выключен'}")
             
-        elif "water_leak" in payload:
-            garage_state["water_leak"] = payload.get("water_leak", False)
-            if garage_state["water_leak"]:
-                logger.warning("🚨 ОБНАРУЖЕНА ПРОТЕЧКА ВОДЫ!")
-            else:
-                logger.info("💧 Протечки воды нет")
+         # Обрабатываем датчики протечки воды
+        elif "water" in topic.lower() or "leak" in topic.lower():
+            # Определяем какой это датчик по ID в топике
+            if "first" in topic.lower() or "1" in topic or "0xa4c1389122c0f5f0" in topic:  # Замените на реальный ID
+                garage_state["water_leak_1"] = payload.get("water_leak", False)
+                garage_state["water_battery_1"] = payload.get("battery", 100)
+                garage_state["water_device_id_1"] = topic.split('/')[-1]  # Берем ID из топика
+                logger.info(f"💧 Датчик протечки 1: {'ОБНАРУЖЕНО' if garage_state['water_leak_1'] else 'Норма'}")
+                
+            elif "second" in topic.lower() or "2" in topic or "0x0xa4c13833fff3d106" in topic:  # Замените на реальный ID  
+                garage_state["water_leak_2"] = payload.get("water_leak", False)
+                garage_state["water_battery_2"] = payload.get("battery", 100)
+                garage_state["water_device_id_2"] = topic.split('/')[-1]
+                logger.info(f"💧 Датчик протечки 2: {'ОБНАРУЖЕНО' if garage_state['water_leak_2'] else 'Норма'}")
         
         # Всегда обновляем время последнего обновления
         garage_state["system_info"] = get_system_info()
@@ -308,21 +331,53 @@ async def control_light_brightness(request: BrightnessRequest):
 @app.get("/api/devices")
 async def get_devices():
     """Получение списка подключенных устройств"""
-    # Можно добавить логику для получения списка устройств из Zigbee2MQTT
     return {
         "status": "success",
         "devices": [
-            "temperature_sensor",
-            "door_sensor", 
-            "motion_sensor",
-            "light_switch",
-            "door_sensor": {
+            {
+                "type": "temperature_sensor",
+                "id": garage_state.get("temperature_device_id", "unknown"),
+                "battery": garage_state.get("temperature_battery", 0),
+                "linkquality": garage_state.get("temperature_linkquality", 0),
+                "status": f"{garage_state.get('temperature', 0)}°C, {garage_state.get('humidity', 0)}%"
+            },
+            {
+                "type": "door_sensor", 
                 "id": garage_state.get("door_device_id", "unknown"),
                 "battery": garage_state.get("door_battery", 0),
                 "linkquality": garage_state.get("door_linkquality", 0),
                 "status": "open" if garage_state.get("door_open") else "closed"
-            }
+            },
+            {
+                "type": "motion_sensor",
+                "id": garage_state.get("motion_device_id", "unknown"),
+                "battery": garage_state.get("motion_battery", 0),
+                "linkquality": garage_state.get("motion_linkquality", 0),
+                "status": "motion" if garage_state.get("motion_detected") else "no_motion"
+            },
+            "light_switch"
         ]
+    }
+
+@app.get("/api/water_sensors")
+async def get_water_sensors():
+    """Получение информации о датчиках протечки"""
+    return {
+        "status": "success",
+        "sensors": {
+            "sensor_1": {
+                "leak": garage_state.get("water_leak_1", False),
+                "battery": garage_state.get("water_battery_1", 100),
+                "device_id": garage_state.get("water_device_id_1", ""),
+                "status": "leak" if garage_state.get("water_leak_1") else "normal"
+            },
+            "sensor_2": {
+                "leak": garage_state.get("water_leak_2", False),
+                "battery": garage_state.get("water_battery_2", 100),
+                "device_id": garage_state.get("water_device_id_2", ""),
+                "status": "leak" if garage_state.get("water_leak_2") else "normal"
+            }
+        }
     }
 
 @app.get("/api/status")

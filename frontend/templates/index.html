@@ -157,6 +157,40 @@
             margin: 5px 0;
         }
 
+        .sensor-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+
+        .sensor-row:nth-child(2) {
+            border-left-color: #28a745; /* Разный цвет для второго датчика */
+        }
+
+        .sensor-label {
+            font-weight: bold;
+            min-width: 80px;
+            margin-right: 10px;
+        }
+
+        .sensor-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 0 15px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .sensor-info-small {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: auto;
+        }
+
     </style>
 </head>
 <body>
@@ -176,9 +210,15 @@
             <h3>🌡️ Температура и влажность</h3>
             <div class="sensor-value" id="temperature">--°C</div>
             <div style="text-align: center;">Влажность: <span id="humidity">--%</span></div>
-            <div class="device-status" id="temp-device-status">Датчик температуры: --</div>
+            
+            <!-- Добавляем информацию о датчике -->
+            <div class="sensor-info">
+                <div>Батарея: <span id="temperature-battery">--%</span></div>
+                <div>Качество связи: <span id="temperature-linkquality">--</span></div>
+                <div style="font-size: 0.8em; color: #666;">ID: <span id="temperature-device-id">--</span></div>
+            </div>
         </div>
-        
+                
         <div class="card">
             <h3>🚪 Состояние ворот</h3>
             <div class="sensor-value" id="door-status">--</div>
@@ -198,15 +238,39 @@
         <div class="card">
             <h3>👥 Детектор движения</h3>
             <div class="sensor-value" id="motion-status">--</div>
-            <div class="device-status" id="motion-device-status">Датчик движения: --</div>
+            
+            <!-- Добавляем информацию о датчике движения -->
+            <div class="sensor-info">
+                <div>Батарея: <span id="motion-battery">--%</span></div>
+                <div>Качество связи: <span id="motion-linkquality">--</span></div>
+                <div style="font-size: 0.8em; color: #666;">ID: <span id="motion-device-id">--</span></div>
+            </div>
         </div>
 
         <div class="card">
-            <h3>💧 Датчик протечки воды</h3>
-            <div class="sensor-value" id="water-leak-status">--</div>
-            <div class="device-status" id="water-device-status">Датчик воды: --</div>
+            <h3>💧 Датчики протечки водыs</h3>
+          
+            <!-- Датчик 1 -->
+            <div class="sensor-row">
+                <div class="sensor-label">Датчик 1:</div>
+                <div class="sensor-value" id="water-leak-1-status">--</div>
+                <div class="sensor-info-small">
+                    Батарея: <span id="water-battery-1">--%</span> | 
+                    ID: <span id="water-device-id-1">--</span>
+                </div>
+            </div>
+            
+            <!-- Датчик 2 -->
+            <div class="sensor-row">
+                <div class="sensor-label">Датчик 2:</div>
+                <div class="sensor-value" id="water-leak-2-status">--</div>
+                <div class="sensor-info-small">
+                    Батарея: <span id="water-battery-2">--%</span> | 
+                    ID: <span id="water-device-id-2">--</span>
+                </div>
+            </div>
         </div>
-
+ 
         <div class="card">
             <h3>💡 Управление светом</h3>
             <div class="sensor-value" id="light-status">--</div>
@@ -284,12 +348,35 @@
             // Сохраняем текущее состояние для использования в других функциях
             garage_state = data;
             
-            // Температура и влажность
+            // Температура и влажность с дополнительной информацией
             document.getElementById('temperature').textContent = 
                 data.temperature ? data.temperature.toFixed(1) + '°C' : '--°C';
             document.getElementById('humidity').textContent = 
                 data.humidity ? data.humidity.toFixed(1) + '%' : '--%';
+
+            // Дополнительная информация о датчике температуры
+            const tempBattery = document.getElementById('temperature-battery');
+            const tempLinkquality = document.getElementById('temperature-linkquality');
+            const tempDeviceId = document.getElementById('temperature-device-id');
+
+            if (data.temperature_battery !== undefined) {
+                tempBattery.textContent = data.temperature_battery + '%';
+                tempBattery.style.color = data.temperature_battery > 20 ? '#28a745' : '#dc3545';
+            }
+
+            if (data.temperature_linkquality !== undefined) {
+                tempLinkquality.textContent = data.temperature_linkquality;
+                const quality = data.temperature_linkquality;
+                tempLinkquality.style.color = 
+                    quality > 200 ? '#28a745' : 
+                    quality > 100 ? '#ffc107' : '#dc3545';
+            }
+
+            if (data.temperature_device_id) {
+                tempDeviceId.textContent = data.temperature_device_id;
+            }
             
+
             // Состояние ворот с дополнительной информацией
             const doorStatus = document.getElementById('door-status');
             const doorButton = document.getElementById('door-button');
@@ -317,26 +404,73 @@
                 }
             }
             
-            // Детектор движения
+            // Детектор движения с дополнительной информацией
             const motionStatus = document.getElementById('motion-status');
+            const motionBattery = document.getElementById('motion-battery');
+            const motionLinkquality = document.getElementById('motion-linkquality');
+            const motionDeviceId = document.getElementById('motion-device-id');
+
             if (data.motion_detected !== undefined) {
                 motionStatus.textContent = data.motion_detected ? 'ОБНАРУЖЕНО' : 'НЕТ';
                 motionStatus.style.color = data.motion_detected ? '#dc3545' : '#28a745';
-            }
-
-            // Датчик протечки
-            const waterLeakStatus = document.getElementById('water-leak-status');
-            if (data.water_leak !== undefined) {
-                waterLeakStatus.textContent = data.water_leak ? 'ОБНАРУЖЕНО!' : 'НОРМА';
-                waterLeakStatus.style.color = data.water_leak ? '#dc3545' : '#28a745';
-                waterLeakStatus.style.fontSize = data.water_leak ? '2em' : '2.5em';
-                if (data.water_leak) {
-                    // Мигающий эффект при протечке
-                    waterLeakStatus.style.animation = 'blink 1s infinite';
-                } else {
-                    waterLeakStatus.style.animation = 'none';
+                
+                // Дополнительная информация о датчике движения
+                if (data.motion_battery !== undefined) {
+                    motionBattery.textContent = data.motion_battery + '%';
+                    motionBattery.style.color = data.motion_battery > 20 ? '#28a745' : '#dc3545';
+                }
+                if (data.motion_linkquality !== undefined) {
+                    motionLinkquality.textContent = data.motion_linkquality;
+                    const quality = data.motion_linkquality;
+                    motionLinkquality.style.color = 
+                        quality > 200 ? '#28a745' : 
+                        quality > 100 ? '#ffc107' : '#dc3545';
+                }
+                if (data.motion_device_id) {
+                    motionDeviceId.textContent = data.motion_device_id;
                 }
             }
+            
+            // Датчики протечки воды
+            const waterLeak1Status = document.getElementById('water-leak-1-status');
+            const waterBattery1 = document.getElementById('water-battery-1');
+            const waterDeviceId1 = document.getElementById('water-device-id-1');
+            
+            const waterLeak2Status = document.getElementById('water-leak-2-status');
+            const waterBattery2 = document.getElementById('water-battery-2');
+            const waterDeviceId2 = document.getElementById('water-device-id-2');
+            
+            // Датчик 1
+            if (data.water_leak_1 !== undefined) {
+                waterLeak1Status.textContent = data.water_leak_1 ? 'ОБНАРУЖЕНО!' : 'Норма';
+                waterLeak1Status.style.color = data.water_leak_1 ? '#dc3545' : '#28a745';
+                waterLeak1Status.style.fontWeight = data.water_leak_1 ? 'bold' : 'normal';
+                
+                if (data.water_battery_1 !== undefined) {
+                    waterBattery1.textContent = data.water_battery_1 + '%';
+                    waterBattery1.style.color = data.water_battery_1 > 20 ? '#28a745' : '#dc3545';
+                }
+                
+                if (data.water_device_id_1) {
+                    waterDeviceId1.textContent = data.water_device_id_1.substring(0, 8) + '...';
+                }
+            }
+            
+            // Датчик 2
+            if (data.water_leak_2 !== undefined) {
+                waterLeak2Status.textContent = data.water_leak_2 ? 'ОБНАРУЖЕНО!' : 'Норма';
+                waterLeak2Status.style.color = data.water_leak_2 ? '#dc3545' : '#28a745';
+                waterLeak2Status.style.fontWeight = data.water_leak_2 ? 'bold' : 'normal';
+                
+                if (data.water_battery_2 !== undefined) {
+                    waterBattery2.textContent = data.water_battery_2 + '%';
+                    waterBattery2.style.color = data.water_battery_2 > 20 ? '#28a745' : '#dc3545';
+                }
+                
+                if (data.water_device_id_2) {
+                    waterDeviceId2.textContent = data.water_device_id_2.substring(0, 8) + '...';
+                }
+    }
             
             // Состояние света
             const lightStatus = document.getElementById('light-status');

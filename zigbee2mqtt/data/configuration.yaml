@@ -35,8 +35,12 @@ advanced:
 version: 4
 devices:
   '0xa4c1388f19f5a677':
-    friendly_name: '0xa4c1388f19f5a677'
+    friendly_name: 'temperature_sonsor'
   '0xa4c13833fff3d106':
-    friendly_name: '0xa4c13833fff3d106'
+    friendly_name: water_leak_2
   '0xa4c138ffcbf1c3aa':
-    friendly_name: '0xa4c138ffcbf1c3aa'
+    friendly_name: 'door_sensor'
+  '0xa4c1389122c0f5f0':
+    friendly_name: water_leak_1
+  '0xa4c138c326aa30d0':
+    friendly_name: 'motion_sensor'
