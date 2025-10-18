@@ -239,7 +239,8 @@ app.add_middleware(
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.append(websocket)
-    
+    logger.info(f" WebSocket подключен: {websocket.client}") 
+
     try:
         # При подключении отправляем текущее состояние
         garage_state["system_info"] = get_system_info()
@@ -256,6 +257,7 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         if websocket in connected_clients:
             connected_clients.remove(websocket)
+        logger.info(" WebSocket отключен")
 
 @app.post("/api/control/door")
 async def control_door():

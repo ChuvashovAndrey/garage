@@ -13,7 +13,7 @@ os.makedirs("static", exist_ok=True)
 templates = Jinja2Templates(directory="templates")
 
 # URL бэкенда из переменных окружения
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", f"http://85.237.34.9:8000")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):

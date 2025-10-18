@@ -299,35 +299,42 @@
         let socket = null;
         let isConnected = false;
         let garage_state = {};
-        const backendUrl = "http://localhost:8000";
+	const backendUrl = 'http://${window.location.hostname}:8000';
 
         function connectWebSocket() {
-            const wsUrl = `ws://${window.location.hostname}:8000/ws`;
-            
-            socket = new WebSocket(wsUrl);
-            
-            socket.onopen = function() {
-                console.log('WebSocket connected to backend');
-                updateStatus(true);
-            };
-            
-            socket.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                updateDashboard(data);
-            };
-            
-            socket.onclose = function() {
-                console.log('WebSocket disconnected');
-                updateStatus(false);
-                setTimeout(connectWebSocket, 3000);
-            };
-            
-            socket.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                updateStatus(false);
-            };
-        }
-        
+	
+	    console.log('### connectWebSocket');
+	    
+	    // Используем тот же хост что и для страницы, но порт 8000
+	    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws`;
+	    
+	    console.log('Connecting to WebSocket:', wsUrl);
+	    
+	    socket = new WebSocket(wsUrl);
+	    
+	    socket.onopen = function() {
+	        console.log('WebSocket connected to backend');
+	        updateStatus(true);
+	    };
+	    
+	    socket.onmessage = function(event) {
+	        const data = JSON.parse(event.data);
+	        updateDashboard(data);
+	    };
+	    
+	    socket.onclose = function() {
+	        console.log('WebSocket disconnected');
+	        updateStatus(false);
+	        setTimeout(connectWebSocket, 3000);
+	    };
+	    
+	    socket.onerror = function(error) {
+	        console.error('WebSocket error:', error);
+	        updateStatus(false);
+	    };
+	}
+
         function updateStatus(connected) {
             isConnected = connected;
             const dot = document.getElementById('status-dot');
@@ -527,85 +534,50 @@
         }
         
         async function controlDoor() {
-            if (!isConnected) {
-                alert('Нет соединения с сервером');
-                return;
-            }
-            
-            try {
-                const response = await fetch(backendUrl + '/api/control/door', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    console.log('Door control result:', result);
-                } else {
-                    alert('Ошибка: ' + result.message);
-                }
-                
-            } catch (error) {
-                console.error('Error controlling door:', error);
-                alert('Ошибка управления воротами');
-            }
-        }
-        
-        async function controlLight() {
-            if (!isConnected) {
-                alert('Нет соединения с сервером');
-                return;
-            }
-            
-            try {
-                const response = await fetch(backendUrl + '/api/control/light', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    console.log('Light control result:', result);
-                } else {
-                    alert('Ошибка: ' + result.message);
-                }
-                
-            } catch (error) {
-                console.error('Error controlling light:', error);
-                alert('Ошибка управления светом');
-            }
-        }
-        
-        async function setBrightness(percent) {
-            if (!isConnected) return;
-            
-            try {
-                const response = await fetch(backendUrl + '/api/control/light_brightness', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ brightness: Math.round((percent / 100) * 255) })
-                });
-                
-                const result = await response.json();
-                if (result.status === 'success') {
-                    console.log('Brightness set to:', percent + '%');
-                } else {
-                    console.error('Brightness control error:', result.message);
-                    updateBrightnessDisplay();
-                }
-            } catch (error) {
-                console.error('Error setting brightness:', error);
-                updateBrightnessDisplay();
-            }
-        }
+          try {
+	        const response = await fetch(backendUrl + '/api/control/door', {
+	            method: 'POST',
+	            headers: {'Content-Type': 'application/json'}
+	        });
+	        const result = await response.json();
+	        console.log('Door control result:', result);
+	    } catch (error) {
+	        console.error('Error controlling door:', error);
+	        alert('Ошибка управления воротами');
+	    }
+	}
+
+	async function controlLight() {
+	    try {
+	        const response = await fetch(backendUrl + '/api/control/light', {
+	            method: 'POST',
+	            headers: {'Content-Type': 'application/json'}
+	        });
+	        const result = await response.json();
+	        console.log('Light control result:', result);
+	    } catch (error) {
+	        console.error('Error controlling light:', error);
+	        alert('Ошибка управления светом');
+	    }
+	}
+	
+	async function setBrightness(percent) {
+	    try {
+	        const brightness = Math.round((percent / 100) * 255);
+	        const response = await fetch(backendUrl + '/api/control/light_brightness', {
+	            method: 'POST',
+	            headers: {'Content-Type': 'application/json'},
+	            body: JSON.stringify({ brightness: brightness })
+	        });
+	        const result = await response.json();
+	        if (result.status !== 'success') {
+	            console.error('Brightness control error:', result.message);
+	        }
+	    } catch (error) {
+	        console.error('Error setting brightness:', error);
+	    }
+	}
+	
         
         // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
