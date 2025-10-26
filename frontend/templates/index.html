@@ -191,6 +191,27 @@
             margin-left: auto;
         }
 
+	.slider-control {
+	    margin: 15px 0;
+	}
+	
+	.slider-control label {
+	    display: block;
+	    margin-bottom: 5px;
+	    font-weight: bold;
+	}
+	
+	.slider-control input[type="range"] {
+	    width: 100%;
+	    margin: 10px 0;
+	}
+	
+	.control-buttons {
+	    display: flex;
+	    gap: 10px;
+	    margin: 15px 0;
+	}
+	
     </style>
 </head>
 <body>
@@ -270,319 +291,425 @@
                 </div>
             </div>
         </div>
- 
-        <div class="card">
-            <h3>💡 Управление светом</h3>
-            <div class="sensor-value" id="light-status">--</div>
-            <div style="text-align: center;">Яркость: <span id="light-brightness">--%</span></div>
-            
-            <div class="brightness-control">
-                <input type="range" min="0" max="100" value="0" class="brightness-slider" id="brightness-slider" onchange="setBrightness(this.value)">
-                <div style="text-align: center; font-size: 0.9em; color: #666;">
-                    <span>0%</span>
-                    <span style="float: right">100%</span>
-                </div>
-            </div>
-            
-            <button class="button warning" onclick="controlLight()" id="light-button">
-                Включить свет
-            </button>
-            <div class="device-status" id="light-device-status">Выключатель света: --</div>
-        </div>
-        
+
+	<div class="card">
+	    <h3>💡 Управление умной лампочкой</h3>
+	
+	    <!-- Статус лампочки -->
+	    <div class="sensor-value" id="light-status">--</div>
+	    <div style="text-align: center;">
+	        Яркость: <span id="light-brightness">--%</span>
+	        <span id="light-color-temp-display" style="margin-left: 15px;">
+	            Цветовая температура: <span id="light-color-temp">--K</span>
+	        </span>
+	    </div>
+	
+	    <!-- Информация о устройстве -->
+	    <div class="sensor-info">
+	        <div>Качество связи: <span id="light-linkquality">--</span></div>
+	        <div style="font-size: 0.8em; color: #666;">ID: <span id="light-device-id">smart_bulb</span></div>
+	    </div>
+	
+	    <!-- Слайдер яркости -->
+	    <div class="brightness-control">
+	        <label>Яркость:</label>
+	        <input type="range" min="0" max="100" value="0" class="brightness-slider"
+	               id="brightness-slider" onchange="setBrightness(this.value)">
+	        <div style="text-align: center; font-size: 0.9em; color: #666;">
+	            <span>0%</span>
+	            <span style="float: right">100%</span>
+	        </div>
+	    </div>
+	
+	    <!-- Слайдер цветовой температуры (опционально) -->
+	    <div class="brightness-control">
+	        <label>Цветовая температура:</label>
+	        <input type="range" min="150" max="500" value="300" class="brightness-slider"
+	               id="color-temp-slider" onchange="setColorTemp(this.value)">
+	        <div style="text-align: center; font-size: 0.9em; color: #666;">
+	            <span>Теплый</span>
+	            <span style="float: right">Холодный</span>
+	        </div>
+	    </div>
+	
+	    <!-- Кнопки управления -->
+	    <button class="button warning" onclick="controlLight()" id="light-button">
+	        Включить свет
+	    </button>
+	
+	    <div class="device-status" id="light-device-status">
+	        Умная лампочка: --
+	    </div>
+	</div>
+	                
         <div class="last-update">
             Последнее обновление: <span id="last-update">--:--</span>
         </div>
     </div>
+<script>
+    let socket = null;
+    let isConnected = false;
+    let garage_state = {};
+    
+    // ИСПРАВЛЕННЫЙ URL - используйте один из вариантов:
+    const backendUrl = 'http://85.237.34.9:8000'; // Лучший вариант
+    // ИЛИ: const backendUrl = `http://${window.location.hostname}:8000`;
+    // ИЛИ: const backendUrl = 'http://' + window.location.hostname + ':8000';
 
-    <script>
-        let socket = null;
-        let isConnected = false;
-        let garage_state = {};
-	const backendUrl = 'http://${window.location.hostname}:8000';
+    console.log('Backend URL:', backendUrl); // Для отладки
 
-        function connectWebSocket() {
-	
-	    console.log('### connectWebSocket');
-	    
-	    // Используем тот же хост что и для страницы, но порт 8000
-	    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws`;
-	    
-	    console.log('Connecting to WebSocket:', wsUrl);
-	    
-	    socket = new WebSocket(wsUrl);
-	    
-	    socket.onopen = function() {
-	        console.log('WebSocket connected to backend');
-	        updateStatus(true);
-	    };
-	    
-	    socket.onmessage = function(event) {
-	        const data = JSON.parse(event.data);
-	        updateDashboard(data);
-	    };
-	    
-	    socket.onclose = function() {
-	        console.log('WebSocket disconnected');
-	        updateStatus(false);
-	        setTimeout(connectWebSocket, 3000);
-	    };
-	    
-	    socket.onerror = function(error) {
-	        console.error('WebSocket error:', error);
-	        updateStatus(false);
-	    };
-	}
-
-        function updateStatus(connected) {
-            isConnected = connected;
-            const dot = document.getElementById('status-dot');
-            const text = document.getElementById('status-text');
-            
-            if (connected) {
-                dot.className = 'status-dot online';
-                text.textContent = 'Онлайн (Zigbee)';
-                text.style.color = '#28a745';
-            } else {
-                dot.className = 'status-dot offline';
-                text.textContent = 'Оффлайн';
-                text.style.color = '#dc3545';
-            }
+    // Функции управления - объявляем ПЕРВЫМИ
+    async function controlDoor() {
+        try {
+            const response = await fetch(backendUrl + '/api/control/door', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            console.log('Door control result:', result);
+        } catch (error) {
+            console.error('Error controlling door:', error);
+            alert('Ошибка управления воротами');
         }
-        
-        function updateDashboard(data) {
-            // Сохраняем текущее состояние для использования в других функциях
-            garage_state = data;
-            
-            // Температура и влажность с дополнительной информацией
-            document.getElementById('temperature').textContent = 
-                data.temperature ? data.temperature.toFixed(1) + '°C' : '--°C';
-            document.getElementById('humidity').textContent = 
-                data.humidity ? data.humidity.toFixed(1) + '%' : '--%';
+    }
 
-            // Дополнительная информация о датчике температуры
-            const tempBattery = document.getElementById('temperature-battery');
-            const tempLinkquality = document.getElementById('temperature-linkquality');
-            const tempDeviceId = document.getElementById('temperature-device-id');
+    async function controlLight() {
+        try {
+            const response = await fetch(backendUrl + '/api/control/light', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const result = await response.json();
+            console.log('Light control result:', result);
+        } catch (error) {
+            console.error('Error controlling light:', error);
+            alert('Ошибка управления светом');
+        }
+    }
 
-            if (data.temperature_battery !== undefined) {
-                tempBattery.textContent = data.temperature_battery + '%';
-                tempBattery.style.color = data.temperature_battery > 20 ? '#28a745' : '#dc3545';
+    async function setBrightness(value) {
+        try {
+            const brightness = Math.round((value / 100) * 255);
+            const response = await fetch(backendUrl + '/api/control/light_brightness', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ brightness: brightness })
+            });
+            const result = await response.json();
+            if (result.status !== 'success') {
+                console.error('Brightness control error:', result.message);
             }
+        } catch (error) {
+            console.error('Error setting brightness:', error);
+        }
+    }
 
-            if (data.temperature_linkquality !== undefined) {
-                tempLinkquality.textContent = data.temperature_linkquality;
-                const quality = data.temperature_linkquality;
-                tempLinkquality.style.color = 
+    async function setColorTemp(value) {
+        try {
+            const response = await fetch(backendUrl + '/api/control/light_color_temp', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ color_temp: parseInt(value) })
+            });
+            const result = await response.json();
+            if (result.status !== 'success') {
+                console.error('Color temperature control error:', result.message);
+            }
+        } catch (error) {
+            console.error('Error setting color temperature:', error);
+        }
+    }
+
+    function connectWebSocket() {
+        console.log('### connectWebSocket');
+        
+        // Используем тот же хост что и для страницы, но порт 8000
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//85.237.34.9:8000/ws`; // Используем явный IP
+        
+        console.log('Connecting to WebSocket:', wsUrl);
+        
+        socket = new WebSocket(wsUrl);
+        
+        socket.onopen = function() {
+            console.log('WebSocket connected to backend');
+            updateStatus(true);
+        };
+        
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            updateDashboard(data);
+        };
+        
+        socket.onclose = function() {
+            console.log('WebSocket disconnected');
+            updateStatus(false);
+            setTimeout(connectWebSocket, 3000);
+        };
+        
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+            updateStatus(false);
+        };
+    }
+
+    function updateStatus(connected) {
+        isConnected = connected;
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        
+        if (connected) {
+            dot.className = 'status-dot online';
+            text.textContent = 'Онлайн (Zigbee)';
+            text.style.color = '#28a745';
+        } else {
+            dot.className = 'status-dot offline';
+            text.textContent = 'Оффлайн';
+            text.style.color = '#dc3545';
+        }
+    }
+    
+    function updateDashboard(data) {
+        console.log('Received data:', data); // Для отладки
+        
+        // Сохраняем текущее состояние для использования в других функциях
+        garage_state = data;
+        
+        // Температура и влажность с дополнительной информацией
+        document.getElementById('temperature').textContent = 
+            data.temperature ? data.temperature.toFixed(1) + '°C' : '--°C';
+        document.getElementById('humidity').textContent = 
+            data.humidity ? data.humidity.toFixed(1) + '%' : '--%';
+
+        // Дополнительная информация о датчике температуры
+        const tempBattery = document.getElementById('temperature-battery');
+        const tempLinkquality = document.getElementById('temperature-linkquality');
+        const tempDeviceId = document.getElementById('temperature-device-id');
+
+        if (data.temperature_battery !== undefined) {
+            tempBattery.textContent = data.temperature_battery + '%';
+            tempBattery.style.color = data.temperature_battery > 20 ? '#28a745' : '#dc3545';
+        }
+
+        if (data.temperature_linkquality !== undefined) {
+            tempLinkquality.textContent = data.temperature_linkquality;
+            const quality = data.temperature_linkquality;
+            tempLinkquality.style.color = 
+                quality > 200 ? '#28a745' : 
+                quality > 100 ? '#ffc107' : '#dc3545';
+        }
+
+        if (data.temperature_device_id) {
+            tempDeviceId.textContent = data.temperature_device_id;
+        }
+
+        // Состояние ворот с дополнительной информацией
+        const doorStatus = document.getElementById('door-status');
+        const doorButton = document.getElementById('door-button');
+        const doorBattery = document.getElementById('door-battery');
+        const doorLinkquality = document.getElementById('door-linkquality');
+        const doorDeviceId = document.getElementById('door-device-id');
+        if (data.door_open !== undefined) {
+            doorStatus.textContent = data.door_open ? 'ОТКРЫТО' : 'ЗАКРЫТО';
+            doorStatus.style.color = data.door_open ? '#dc3545' : '#28a745';
+            doorButton.textContent = data.door_open ? 'Закрыть ворота' : 'Открыть ворота';
+            // Дополнительная информация
+            if (data.door_battery !== undefined) {
+                doorBattery.textContent = data.door_battery + '%';
+                doorBattery.style.color = data.door_battery > 20 ? '#28a745' : '#dc3545';
+            }
+            if (data.door_linkquality !== undefined) {
+                doorLinkquality.textContent = data.door_linkquality;
+                const quality = data.door_linkquality;
+                doorLinkquality.style.color = 
                     quality > 200 ? '#28a745' : 
                     quality > 100 ? '#ffc107' : '#dc3545';
             }
+            if (data.door_device_id) {
+                doorDeviceId.textContent = data.door_device_id;
+            }
+        }
+        
+        // Детектор движения с дополнительной информацией
+        const motionStatus = document.getElementById('motion-status');
+        const motionBattery = document.getElementById('motion-battery');
+        const motionLinkquality = document.getElementById('motion-linkquality');
+        const motionDeviceId = document.getElementById('motion-device-id');
 
-            if (data.temperature_device_id) {
-                tempDeviceId.textContent = data.temperature_device_id;
+        if (data.motion_detected !== undefined) {
+            motionStatus.textContent = data.motion_detected ? 'ОБНАРУЖЕНО' : 'НЕТ';
+            motionStatus.style.color = data.motion_detected ? '#dc3545' : '#28a745';
+            
+            // Дополнительная информация о датчике движения
+            if (data.motion_battery !== undefined) {
+                motionBattery.textContent = data.motion_battery + '%';
+                motionBattery.style.color = data.motion_battery > 20 ? '#28a745' : '#dc3545';
+            }
+            if (data.motion_linkquality !== undefined) {
+                motionLinkquality.textContent = data.motion_linkquality;
+                const quality = data.motion_linkquality;
+                motionLinkquality.style.color = 
+                    quality > 200 ? '#28a745' : 
+                    quality > 100 ? '#ffc107' : '#dc3545';
+            }
+            if (data.motion_device_id) {
+                motionDeviceId.textContent = data.motion_device_id;
+            }
+        }
+        
+        // Датчики протечки воды
+        const waterLeak1Status = document.getElementById('water-leak-1-status');
+        const waterBattery1 = document.getElementById('water-battery-1');
+        const waterDeviceId1 = document.getElementById('water-device-id-1');
+        
+        const waterLeak2Status = document.getElementById('water-leak-2-status');
+        const waterBattery2 = document.getElementById('water-battery-2');
+        const waterDeviceId2 = document.getElementById('water-device-id-2');
+        
+        // Датчик 1
+        if (data.water_leak_1 !== undefined) {
+            waterLeak1Status.textContent = data.water_leak_1 ? 'ОБНАРУЖЕНО!' : 'Норма';
+            waterLeak1Status.style.color = data.water_leak_1 ? '#dc3545' : '#28a745';
+            waterLeak1Status.style.fontWeight = data.water_leak_1 ? 'bold' : 'normal';
+            
+            if (data.water_battery_1 !== undefined) {
+                waterBattery1.textContent = data.water_battery_1 + '%';
+                waterBattery1.style.color = data.water_battery_1 > 20 ? '#28a745' : '#dc3545';
             }
             
-
-            // Состояние ворот с дополнительной информацией
-            const doorStatus = document.getElementById('door-status');
-            const doorButton = document.getElementById('door-button');
-            const doorBattery = document.getElementById('door-battery');
-            const doorLinkquality = document.getElementById('door-linkquality');
-            const doorDeviceId = document.getElementById('door-device-id');
-            if (data.door_open !== undefined) {
-                doorStatus.textContent = data.door_open ? 'ОТКРЫТО' : 'ЗАКРЫТО';
-                doorStatus.style.color = data.door_open ? '#dc3545' : '#28a745';
-                doorButton.textContent = data.door_open ? 'Закрыть ворота' : 'Открыть ворота';
-                // Дополнительная информация
-                if (data.door_battery !== undefined) {
-                    doorBattery.textContent = data.door_battery + '%';
-                    doorBattery.style.color = data.door_battery > 20 ? '#28a745' : '#dc3545';
-                }
-                if (data.door_linkquality !== undefined) {
-                    doorLinkquality.textContent = data.door_linkquality;
-                    const quality = data.door_linkquality;
-                    doorLinkquality.style.color = 
-                        quality > 200 ? '#28a745' : 
-                        quality > 100 ? '#ffc107' : '#dc3545';
-                }
-                if (data.door_device_id) {
-                    doorDeviceId.textContent = data.door_device_id;
-                }
+            if (data.water_device_id_1) {
+                waterDeviceId1.textContent = data.water_device_id_1.substring(0, 8) + '...';
+            }
+        }
+        
+        // Датчик 2
+        if (data.water_leak_2 !== undefined) {
+            waterLeak2Status.textContent = data.water_leak_2 ? 'ОБНАРУЖЕНО!' : 'Норма';
+            waterLeak2Status.style.color = data.water_leak_2 ? '#dc3545' : '#28a745';
+            waterLeak2Status.style.fontWeight = data.water_leak_2 ? 'bold' : 'normal';
+            
+            if (data.water_battery_2 !== undefined) {
+                waterBattery2.textContent = data.water_battery_2 + '%';
+                waterBattery2.style.color = data.water_battery_2 > 20 ? '#28a745' : '#dc3545';
             }
             
-            // Детектор движения с дополнительной информацией
-            const motionStatus = document.getElementById('motion-status');
-            const motionBattery = document.getElementById('motion-battery');
-            const motionLinkquality = document.getElementById('motion-linkquality');
-            const motionDeviceId = document.getElementById('motion-device-id');
-
-            if (data.motion_detected !== undefined) {
-                motionStatus.textContent = data.motion_detected ? 'ОБНАРУЖЕНО' : 'НЕТ';
-                motionStatus.style.color = data.motion_detected ? '#dc3545' : '#28a745';
-                
-                // Дополнительная информация о датчике движения
-                if (data.motion_battery !== undefined) {
-                    motionBattery.textContent = data.motion_battery + '%';
-                    motionBattery.style.color = data.motion_battery > 20 ? '#28a745' : '#dc3545';
-                }
-                if (data.motion_linkquality !== undefined) {
-                    motionLinkquality.textContent = data.motion_linkquality;
-                    const quality = data.motion_linkquality;
-                    motionLinkquality.style.color = 
-                        quality > 200 ? '#28a745' : 
-                        quality > 100 ? '#ffc107' : '#dc3545';
-                }
-                if (data.motion_device_id) {
-                    motionDeviceId.textContent = data.motion_device_id;
-                }
+            if (data.water_device_id_2) {
+                waterDeviceId2.textContent = data.water_device_id_2.substring(0, 8) + '...';
             }
+        }
+        
+        // Состояние света
+        const lightStatus = document.getElementById('light-status');
+        const lightButton = document.getElementById('light-button');
+        
+        if (data.light_on !== undefined) {
+            lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
+            lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
+            lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
+            lightButton.className = data.light_on ? 'button danger' : 'button warning';
             
-            // Датчики протечки воды
-            const waterLeak1Status = document.getElementById('water-leak-1-status');
-            const waterBattery1 = document.getElementById('water-battery-1');
-            const waterDeviceId1 = document.getElementById('water-device-id-1');
-            
-            const waterLeak2Status = document.getElementById('water-leak-2-status');
-            const waterBattery2 = document.getElementById('water-battery-2');
-            const waterDeviceId2 = document.getElementById('water-device-id-2');
-            
-            // Датчик 1
-            if (data.water_leak_1 !== undefined) {
-                waterLeak1Status.textContent = data.water_leak_1 ? 'ОБНАРУЖЕНО!' : 'Норма';
-                waterLeak1Status.style.color = data.water_leak_1 ? '#dc3545' : '#28a745';
-                waterLeak1Status.style.fontWeight = data.water_leak_1 ? 'bold' : 'normal';
-                
-                if (data.water_battery_1 !== undefined) {
-                    waterBattery1.textContent = data.water_battery_1 + '%';
-                    waterBattery1.style.color = data.water_battery_1 > 20 ? '#28a745' : '#dc3545';
-                }
-                
-                if (data.water_device_id_1) {
-                    waterDeviceId1.textContent = data.water_device_id_1.substring(0, 8) + '...';
-                }
-            }
-            
-            // Датчик 2
-            if (data.water_leak_2 !== undefined) {
-                waterLeak2Status.textContent = data.water_leak_2 ? 'ОБНАРУЖЕНО!' : 'Норма';
-                waterLeak2Status.style.color = data.water_leak_2 ? '#dc3545' : '#28a745';
-                waterLeak2Status.style.fontWeight = data.water_leak_2 ? 'bold' : 'normal';
-                
-                if (data.water_battery_2 !== undefined) {
-                    waterBattery2.textContent = data.water_battery_2 + '%';
-                    waterBattery2.style.color = data.water_battery_2 > 20 ? '#28a745' : '#dc3545';
-                }
-                
-                if (data.water_device_id_2) {
-                    waterDeviceId2.textContent = data.water_device_id_2.substring(0, 8) + '...';
-                }
+            // Обновляем отображение яркости
+            updateBrightnessDisplay();
+            // Обновление статуса умной лампочки
+            updateLightStatus(data);
+        }
+        
+        // Системная информация
+        if (data.system_info) {
+            const systemInfo = data.system_info;
+            const systemInfoElement = document.getElementById('system-info');
+            systemInfoElement.innerHTML = `
+                <div class="system-item">
+                    <div>CPU</div>
+                    <div class="system-value">${systemInfo.cpu_percent.toFixed(1)}%</div>
+                </div>
+                <div class="system-item">
+                    <div>Память</div>
+                    <div class="system-value">${systemInfo.memory_percent.toFixed(1)}%</div>
+                </div>
+                <div class="system-item">
+                    <div>Диск</div>
+                    <div class="system-value">${systemInfo.disk_usage.toFixed(1)}%</div>
+                </div>
+                <div class="system-item">
+                    <div>Аптайм</div>
+                    <div class="system-value">${Math.round(systemInfo.uptime / 3600)}ч</div>
+                </div>
+            `;
+        }
+        
+        // Время последнего обновления
+        if (data.last_update) {
+            const date = new Date(data.last_update);
+            document.getElementById('last-update').textContent = 
+                date.toLocaleTimeString();
+        }
     }
-            
-            // Состояние света
-            const lightStatus = document.getElementById('light-status');
-            const lightButton = document.getElementById('light-button');
-            
-            if (data.light_on !== undefined) {
-                lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
-                lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
-                lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
-                lightButton.className = data.light_on ? 'button danger' : 'button warning';
-                
-                // Обновляем отображение яркости
-                updateBrightnessDisplay();
-            }
-            
-            // Системная информация
-            if (data.system_info) {
-                const systemInfo = data.system_info;
-                const systemInfoElement = document.getElementById('system-info');
-                systemInfoElement.innerHTML = `
-                    <div class="system-item">
-                        <div>CPU</div>
-                        <div class="system-value">${systemInfo.cpu_percent.toFixed(1)}%</div>
-                    </div>
-                    <div class="system-item">
-                        <div>Память</div>
-                        <div class="system-value">${systemInfo.memory_percent.toFixed(1)}%</div>
-                    </div>
-                    <div class="system-item">
-                        <div>Диск</div>
-                        <div class="system-value">${systemInfo.disk_usage.toFixed(1)}%</div>
-                    </div>
-                    <div class="system-item">
-                        <div>Аптайм</div>
-                        <div class="system-value">${Math.round(systemInfo.uptime / 3600)}ч</div>
-                    </div>
-                `;
-            }
-            
-            // Время последнего обновления
-            if (data.last_update) {
-                const date = new Date(data.last_update);
-                document.getElementById('last-update').textContent = 
-                    date.toLocaleTimeString();
+
+    // Обновление статуса умной лампочки
+    function updateLightStatus(data) {
+        const lightStatus = document.getElementById('light-status');
+        const lightBrightness = document.getElementById('light-brightness');
+        const lightButton = document.getElementById('light-button');
+
+        if (data.light_on !== undefined) {
+            // Обновление статуса включения/выключения
+            lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
+            lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
+
+            // Обновление текста кнопки
+            lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
+            lightButton.className = data.light_on ? 'button danger' : 'button warning';
+        }
+
+        // Обновление яркости
+        if (data.light_brightness !== undefined) {
+            const brightnessPercent = Math.round((data.light_brightness / 255) * 100);
+            lightBrightness.textContent = brightnessPercent + '%';
+
+            // Обновление слайдера яркости
+            const brightnessSlider = document.getElementById('brightness-slider');
+            if (brightnessSlider) {
+                brightnessSlider.value = brightnessPercent;
             }
         }
 
-        // Функция для обновления отображения яркости
-        function updateBrightnessDisplay() {
-            const brightness = garage_state.light_brightness || 0;
-            const brightnessPercent = Math.round((brightness / 255) * 100);
-            document.getElementById('light-brightness').textContent = brightnessPercent + '%';
-            document.getElementById('brightness-slider').value = brightnessPercent;
+        // Обновление качества связи (если есть в данных)
+        const lightLinkquality = document.getElementById('light-linkquality');
+        if (lightLinkquality && data.light_linkquality !== undefined) {
+            lightLinkquality.textContent = data.light_linkquality;
+            const quality = data.light_linkquality;
+            lightLinkquality.style.color =
+                quality > 200 ? '#28a745' :
+                quality > 100 ? '#ffc107' : '#dc3545';
         }
-        
-        async function controlDoor() {
-          try {
-	        const response = await fetch(backendUrl + '/api/control/door', {
-	            method: 'POST',
-	            headers: {'Content-Type': 'application/json'}
-	        });
-	        const result = await response.json();
-	        console.log('Door control result:', result);
-	    } catch (error) {
-	        console.error('Error controlling door:', error);
-	        alert('Ошибка управления воротами');
-	    }
-	}
 
-	async function controlLight() {
-	    try {
-	        const response = await fetch(backendUrl + '/api/control/light', {
-	            method: 'POST',
-	            headers: {'Content-Type': 'application/json'}
-	        });
-	        const result = await response.json();
-	        console.log('Light control result:', result);
-	    } catch (error) {
-	        console.error('Error controlling light:', error);
-	        alert('Ошибка управления светом');
-	    }
-	}
-	
-	async function setBrightness(percent) {
-	    try {
-	        const brightness = Math.round((percent / 100) * 255);
-	        const response = await fetch(backendUrl + '/api/control/light_brightness', {
-	            method: 'POST',
-	            headers: {'Content-Type': 'application/json'},
-	            body: JSON.stringify({ brightness: brightness })
-	        });
-	        const result = await response.json();
-	        if (result.status !== 'success') {
-	            console.error('Brightness control error:', result.message);
-	        }
-	    } catch (error) {
-	        console.error('Error setting brightness:', error);
-	    }
-	}
-	
-        
-        // Инициализация при загрузке страницы
-        document.addEventListener('DOMContentLoaded', function() {
-            connectWebSocket();
-        });
-    </script>
+        // Обновление цветовой температуры (если есть в данных)
+        const lightColorTemp = document.getElementById('light-color-temp');
+        if (lightColorTemp && data.light_color_temp !== undefined) {
+            lightColorTemp.textContent = data.light_color_temp + 'K';
+
+            // Обновление слайдера цветовой температуры
+            const colorTempSlider = document.getElementById('color-temp-slider');
+            if (colorTempSlider) {
+                colorTempSlider.value = data.light_color_temp;
+            }
+        }
+    }
+
+    // Функция для обновления отображения яркости
+    function updateBrightnessDisplay() {
+        const brightness = garage_state.light_brightness || 0;
+        const brightnessPercent = Math.round((brightness / 255) * 100);
+        document.getElementById('light-brightness').textContent = brightnessPercent + '%';
+        document.getElementById('brightness-slider').value = brightnessPercent;
+    }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        connectWebSocket();
+    });
+
+</script>
 </body>
 </html>

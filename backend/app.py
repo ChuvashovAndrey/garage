@@ -32,6 +32,10 @@ garage_state = {
     "motion_device_id": "motion_sensor",  # Новое поле - ID датчика движения
     "light_on": False,
     "light_brightness": 0,
+    "light_color_temp": 300,            # НОВОЕ - цветовая температура
+    "light_device_id": "smart_bulb",  # НОВОЕ - ID устройства
+    "light_linkquality": 0,           # НОВОЕ - качество связи
+    "light_voltage": 0,                # НОВОЕ - напряжение
     "water_leak_1": False,           # Новое поле - датчик протечки 1
     "water_battery_1": 100,          # Батарея датчика 1
     "water_device_id_1": "water_leak_1",         # ID датчика 1
@@ -116,12 +120,19 @@ def on_mqtt_message(client, userdata, msg):
             garage_state["motion_linkquality"] = payload.get("linkquality", garage_state["motion_linkquality"])
             garage_state["motion_device_id"] = topic.split('/')[-1]  # Берем ID из топика
             logger.info(f"👤 Обновлено движение: {'обнаружено' if garage_state['motion_detected'] else 'нет'}, батарея: {garage_state['motion_battery']}%, сигнал: {garage_state['motion_linkquality']}")
-            
-        elif "state" in payload or "brightness" in payload:
-            garage_state["light_on"] = payload.get("state", "OFF") == "ON"
-            garage_state["light_brightness"] = payload.get("brightness", 0)
-            logger.info(f"💡 Обновлен свет: {'включен' if garage_state['light_on'] else 'выключен'}")
-            
+     
+       # Обработка данных от умной лампочки
+        elif "smart_bulb" in payload:
+           garage_state["light_on"] = payload.get("state", "OFF") == "ON"
+           garage_state["light_brightness"] = payload.get("brightness", 0)
+           garage_state["light_color_temp"] = payload.get("color_temp", garage_state["light_color_temp"])
+           garage_state["light_device_id"] = topic.split('/')[-1]  # Берем ID из топика
+           garage_state["light_linkquality"] = payload.get("linkquality", garage_state["light_linkquality"]) 
+           garage_state["light_voltage"] = payload.get("voltage", garage_state["light_voltage"]) 
+           light_status = "включен" if garage_state["light_on"] else "выключен"
+           logger.info(f"💡 Обновлена лампочка: {light_status}, яркость: {garage_state['light_brightness']}, цветовая температура: {garage_state['light_color_temp']}K")
+
+               
          # Обрабатываем датчики протечки воды
         elif "water" in topic.lower() or "leak" in topic.lower():
             # Определяем какой это датчик по ID в топике
@@ -229,7 +240,11 @@ app = FastAPI(title="Smart Garage Backend", lifespan=lifespan)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://85.237.34.9:5000",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -258,6 +273,85 @@ async def websocket_endpoint(websocket: WebSocket):
         if websocket in connected_clients:
             connected_clients.remove(websocket)
         logger.info(" WebSocket отключен")
+
+@app.post("/api/control/light")
+async def control_light():
+    """Управление светом"""
+    try:
+        new_state = "ON" if not garage_state["light_on"] else "OFF"
+        brightness = 255 if new_state == "ON" else 0
+        
+        # Отправляем команду в Zigbee2MQTT
+        mqtt_client.publish(
+            "zigbee2mqtt/smart_bulb/set",  # ИЗМЕНИТЕ НА smart_bulb
+            json.dumps({
+                "state": new_state,
+                "brightness": brightness
+            })
+        )
+        
+        return {
+            "status": "success",
+            "light_on": new_state == "ON",
+            "message": f"Свет {'включен' if new_state == 'ON' else 'выключен'}"
+        }
+    except Exception as e:
+        logger.error(f"❌ Ошибка управления светом: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/control/light_brightness")
+async def control_light_brightness(request: BrightnessRequest):
+    """Управление яркостью света"""
+    try:
+        brightness = request.brightness
+        
+        if brightness < 0 or brightness > 255:
+            return {"status": "error", "message": "Яркость должна быть от 0 до 255"}
+            
+        # Отправляем команду в Zigbee2MQTT
+        mqtt_client.publish(
+            "zigbee2mqtt/smart_bulb/set",  # ИЗМЕНИТЕ НА smart_bulb
+            json.dumps({
+                "state": "ON" if brightness > 0 else "OFF",
+                "brightness": brightness
+            })
+        )
+        
+        return {
+            "status": "success",
+            "brightness": brightness,
+            "light_on": brightness > 0,
+            "message": f"Яркость установлена на {round((brightness / 255) * 100)}%"
+        }
+    except Exception as e:
+        logger.error(f"❌ Ошибка управления яркостью: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/control/light_color_temp")
+async def control_light_color_temp(request: dict):
+    """Управление цветовой температурой света"""
+    try:
+        color_temp = request.get("color_temp", 300)
+        
+        # Ограничиваем диапазон (зависит от модели лампы)
+        color_temp = max(150, min(500, color_temp))
+            
+        # Отправляем команду в Zigbee2MQTT
+        mqtt_client.publish(
+            "zigbee2mqtt/smart_bulb/set",  # ИЗМЕНИТЕ НА smart_bulb
+            json.dumps({
+                "color_temp": color_temp
+            })
+        )
+        
+        return {
+            "status": "success",
+            "color_temp": color_temp,
+            "message": f"Цветовая температура установлена на {color_temp}K"
+        }
+    except Exception as e:
+        logger.error(f"❌ Ошибка управления цветовой температурой: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/control/door")
 async def control_door():

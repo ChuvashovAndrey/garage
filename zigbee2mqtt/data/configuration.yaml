@@ -45,4 +45,4 @@ devices:
   '0xa4c138c326aa30d0':
     friendly_name: motion_sensor
   '0xa4c1380c1cd5dd3c':
-    friendly_name: '0xa4c1380c1cd5dd3c'
+    friendly_name: smart_bulb
