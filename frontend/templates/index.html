@@ -294,7 +294,7 @@
 
 	<div class="card">
 	    <h3>💡 Управление умной лампочкой</h3>
-	
+	    
 	    <!-- Статус лампочки -->
 	    <div class="sensor-value" id="light-status">--</div>
 	    <div style="text-align: center;">
@@ -303,45 +303,45 @@
 	            Цветовая температура: <span id="light-color-temp">--K</span>
 	        </span>
 	    </div>
-	
+	    
 	    <!-- Информация о устройстве -->
 	    <div class="sensor-info">
 	        <div>Качество связи: <span id="light-linkquality">--</span></div>
 	        <div style="font-size: 0.8em; color: #666;">ID: <span id="light-device-id">smart_bulb</span></div>
 	    </div>
-	
+	    
 	    <!-- Слайдер яркости -->
 	    <div class="brightness-control">
 	        <label>Яркость:</label>
-	        <input type="range" min="0" max="100" value="0" class="brightness-slider"
+	        <input type="range" min="0" max="100" value="0" class="brightness-slider" 
 	               id="brightness-slider" onchange="setBrightness(this.value)">
 	        <div style="text-align: center; font-size: 0.9em; color: #666;">
 	            <span>0%</span>
 	            <span style="float: right">100%</span>
 	        </div>
 	    </div>
-	
-	    <!-- Слайдер цветовой температуры (опционально) -->
+	    
+	    <!-- Слайдер цветовой температуры -->
 	    <div class="brightness-control">
 	        <label>Цветовая температура:</label>
-	        <input type="range" min="150" max="500" value="300" class="brightness-slider"
+	        <input type="range" min="150" max="500" value="300" class="brightness-slider" 
 	               id="color-temp-slider" onchange="setColorTemp(this.value)">
 	        <div style="text-align: center; font-size: 0.9em; color: #666;">
-	            <span>Теплый</span>
-	            <span style="float: right">Холодный</span>
+	            <span>Холодный</span>
+	            <span style="float: right">Теплый</span>
 	        </div>
 	    </div>
-	
+	    
 	    <!-- Кнопки управления -->
 	    <button class="button warning" onclick="controlLight()" id="light-button">
 	        Включить свет
 	    </button>
-	
+	    
 	    <div class="device-status" id="light-device-status">
 	        Умная лампочка: --
 	    </div>
-	</div>
-	                
+	</div>	                
+	
         <div class="last-update">
             Последнее обновление: <span id="last-update">--:--</span>
         </div>
@@ -598,22 +598,55 @@
             }
         }
         
-        // Состояние света
-        const lightStatus = document.getElementById('light-status');
-        const lightButton = document.getElementById('light-button');
-        
-        if (data.light_on !== undefined) {
-            lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
-            lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
-            lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
-            lightButton.className = data.light_on ? 'button danger' : 'button warning';
-            
-            // Обновляем отображение яркости
-            updateBrightnessDisplay();
-            // Обновление статуса умной лампочки
-            updateLightStatus(data);
-        }
-        
+	// ОБНОВЛЕНИЕ СОСТОЯНИЯ УМНОЙ ЛАМПОЧКИ
+	const lightStatus = document.getElementById('light-status');
+	const lightBrightness = document.getElementById('light-brightness');
+	const lightButton = document.getElementById('light-button');
+	const lightColorTemp = document.getElementById('light-color-temp');
+	const lightLinkquality = document.getElementById('light-linkquality');
+	
+	// Обновление статуса включения/выключения
+	if (data.light_on !== undefined) {
+	    lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
+	    lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
+	    
+	    // Обновление текста кнопки
+	    lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
+	    lightButton.className = data.light_on ? 'button danger' : 'button warning';
+	}
+	
+	// Обновление яркости
+	if (data.light_brightness !== undefined) {
+	    const brightnessPercent = Math.round((data.light_brightness / 255) * 100);
+	    lightBrightness.textContent = brightnessPercent + '%';
+	    
+	    // Обновление слайдера яркости
+	    const brightnessSlider = document.getElementById('brightness-slider');
+	    if (brightnessSlider) {
+	        brightnessSlider.value = brightnessPercent;
+	    }
+	}
+	
+	// Обновление цветовой температуры
+	if (data.light_color_temp !== undefined) {
+	    lightColorTemp.textContent = data.light_color_temp + 'K';
+	    
+	    // Обновление слайдера цветовой температуры
+	    const colorTempSlider = document.getElementById('color-temp-slider');
+	    if (colorTempSlider) {
+	        colorTempSlider.value = data.light_color_temp;
+	    }
+	}
+	
+	// Обновление качества связи
+	if (lightLinkquality && data.light_linkquality !== undefined) {
+	    lightLinkquality.textContent = data.light_linkquality;
+	    const quality = data.light_linkquality;
+	    lightLinkquality.style.color = 
+	        quality > 200 ? '#28a745' : 
+	        quality > 100 ? '#ffc107' : '#dc3545';
+	} 
+	
         // Системная информация
         if (data.system_info) {
             const systemInfo = data.system_info;
@@ -646,66 +679,8 @@
         }
     }
 
-    // Обновление статуса умной лампочки
-    function updateLightStatus(data) {
-        const lightStatus = document.getElementById('light-status');
-        const lightBrightness = document.getElementById('light-brightness');
-        const lightButton = document.getElementById('light-button');
 
-        if (data.light_on !== undefined) {
-            // Обновление статуса включения/выключения
-            lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
-            lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
-
-            // Обновление текста кнопки
-            lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
-            lightButton.className = data.light_on ? 'button danger' : 'button warning';
-        }
-
-        // Обновление яркости
-        if (data.light_brightness !== undefined) {
-            const brightnessPercent = Math.round((data.light_brightness / 255) * 100);
-            lightBrightness.textContent = brightnessPercent + '%';
-
-            // Обновление слайдера яркости
-            const brightnessSlider = document.getElementById('brightness-slider');
-            if (brightnessSlider) {
-                brightnessSlider.value = brightnessPercent;
-            }
-        }
-
-        // Обновление качества связи (если есть в данных)
-        const lightLinkquality = document.getElementById('light-linkquality');
-        if (lightLinkquality && data.light_linkquality !== undefined) {
-            lightLinkquality.textContent = data.light_linkquality;
-            const quality = data.light_linkquality;
-            lightLinkquality.style.color =
-                quality > 200 ? '#28a745' :
-                quality > 100 ? '#ffc107' : '#dc3545';
-        }
-
-        // Обновление цветовой температуры (если есть в данных)
-        const lightColorTemp = document.getElementById('light-color-temp');
-        if (lightColorTemp && data.light_color_temp !== undefined) {
-            lightColorTemp.textContent = data.light_color_temp + 'K';
-
-            // Обновление слайдера цветовой температуры
-            const colorTempSlider = document.getElementById('color-temp-slider');
-            if (colorTempSlider) {
-                colorTempSlider.value = data.light_color_temp;
-            }
-        }
-    }
-
-    // Функция для обновления отображения яркости
-    function updateBrightnessDisplay() {
-        const brightness = garage_state.light_brightness || 0;
-        const brightnessPercent = Math.round((brightness / 255) * 100);
-        document.getElementById('light-brightness').textContent = brightnessPercent + '%';
-        document.getElementById('brightness-slider').value = brightnessPercent;
-    }
-
-    // Инициализация при загрузке страницы
+	    // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         connectWebSocket();
     });

@@ -122,14 +122,14 @@ def on_mqtt_message(client, userdata, msg):
             logger.info(f"👤 Обновлено движение: {'обнаружено' if garage_state['motion_detected'] else 'нет'}, батарея: {garage_state['motion_battery']}%, сигнал: {garage_state['motion_linkquality']}")
      
        # Обработка данных от умной лампочки
-        elif "smart_bulb" in payload:
+        elif "smart_bulb" in topic:
            garage_state["light_on"] = payload.get("state", "OFF") == "ON"
            garage_state["light_brightness"] = payload.get("brightness", 0)
            garage_state["light_color_temp"] = payload.get("color_temp", garage_state["light_color_temp"])
            garage_state["light_device_id"] = topic.split('/')[-1]  # Берем ID из топика
            garage_state["light_linkquality"] = payload.get("linkquality", garage_state["light_linkquality"]) 
            garage_state["light_voltage"] = payload.get("voltage", garage_state["light_voltage"]) 
-           light_status = "включен" if garage_state["light_on"] else "выключен"
+           light_status = "включена" if garage_state["light_on"] else "выключен"
            logger.info(f"💡 Обновлена лампочка: {light_status}, яркость: {garage_state['light_brightness']}, цветовая температура: {garage_state['light_color_temp']}K")
 
                
