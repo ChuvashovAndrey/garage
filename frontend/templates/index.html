@@ -299,9 +299,7 @@
 	    <div class="sensor-value" id="light-status">--</div>
 	    <div style="text-align: center;">
 	        Яркость: <span id="light-brightness">--%</span>
-	        <span id="light-color-temp-display" style="margin-left: 15px;">
-	            Цветовая температура: <span id="light-color-temp">--K</span>
-	        </span>
+	        Цветовая температура: <span id="light-color-temp">--К</span>
 	    </div>
 	    
 	    <!-- Информация о устройстве -->
@@ -598,55 +596,61 @@
             }
         }
         
-	// ОБНОВЛЕНИЕ СОСТОЯНИЯ УМНОЙ ЛАМПОЧКИ
-	const lightStatus = document.getElementById('light-status');
-	const lightBrightness = document.getElementById('light-brightness');
-	const lightButton = document.getElementById('light-button');
-	const lightColorTemp = document.getElementById('light-color-temp');
-	const lightLinkquality = document.getElementById('light-linkquality');
-	
-	// Обновление статуса включения/выключения
-	if (data.light_on !== undefined) {
-	    lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
-	    lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
-	    
-	    // Обновление текста кнопки
-	    lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
-	    lightButton.className = data.light_on ? 'button danger' : 'button warning';
-	}
-	
-	// Обновление яркости
-	if (data.light_brightness !== undefined) {
-	    const brightnessPercent = Math.round((data.light_brightness / 255) * 100);
-	    lightBrightness.textContent = brightnessPercent + '%';
-	    
-	    // Обновление слайдера яркости
-	    const brightnessSlider = document.getElementById('brightness-slider');
-	    if (brightnessSlider) {
-	        brightnessSlider.value = brightnessPercent;
-	    }
-	}
-	
-	// Обновление цветовой температуры
-	if (data.light_color_temp !== undefined) {
-	    lightColorTemp.textContent = data.light_color_temp + 'K';
-	    
-	    // Обновление слайдера цветовой температуры
-	    const colorTempSlider = document.getElementById('color-temp-slider');
-	    if (colorTempSlider) {
-	        colorTempSlider.value = data.light_color_temp;
-	    }
-	}
-	
-	// Обновление качества связи
-	if (lightLinkquality && data.light_linkquality !== undefined) {
-	    lightLinkquality.textContent = data.light_linkquality;
-	    const quality = data.light_linkquality;
-	    lightLinkquality.style.color = 
-	        quality > 200 ? '#28a745' : 
-	        quality > 100 ? '#ffc107' : '#dc3545';
-	} 
-	
+        // ОБНОВЛЕНИЕ СОСТОЯНИЯ УМНОЙ ЛАМПОЧКИ
+        const lightStatus = document.getElementById('light-status');
+        const lightBrightness = document.getElementById('light-brightness');
+        const lightButton = document.getElementById('light-button');
+        const lightColorTemp = document.getElementById('light-color-temp');
+        const lightLinkquality = document.getElementById('light-linkquality');
+        
+        // Обновление статуса включения/выключения
+        if (data.light_on !== undefined) {
+            lightStatus.textContent = data.light_on ? 'ВКЛ' : 'ВЫКЛ';
+            lightStatus.style.color = data.light_on ? '#ffc107' : '#6c757d';
+            
+            // Обновление текста кнопки
+            lightButton.textContent = data.light_on ? 'Выключить свет' : 'Включить свет';
+            lightButton.className = data.light_on ? 'button danger' : 'button warning';
+        }
+        
+        // Обновление яркости - только если лампа включена
+        if (data.light_brightness !== undefined && data.light_on) {
+            const brightnessPercent = Math.round((data.light_brightness / 255) * 100);
+            lightBrightness.textContent = brightnessPercent + '%';
+            
+            // Обновление слайдера яркости только если значение изменилось
+            const brightnessSlider = document.getElementById('brightness-slider');
+            if (brightnessSlider && parseInt(brightnessSlider.value) !== brightnessPercent) {
+                brightnessSlider.value = brightnessPercent;
+            }
+            
+            // Сохраняем последнюю яркость
+            lastBrightness = brightnessPercent;
+        } else if (!data.light_on) {
+            // Если лампа выключена, показываем последнюю сохраненную яркость
+            lightBrightness.textContent = lastBrightness + '%';
+        }
+        
+        // Обновление цветовой температуры - только если значение изменилось
+        if (data.light_color_temp !== undefined) {
+            lightColorTemp.textContent = data.light_color_temp + 'K';
+            
+            // Обновление слайдера цветовой температуры только если значение изменилось
+            const colorTempSlider = document.getElementById('color-temp-slider');
+            if (colorTempSlider && parseInt(colorTempSlider.value) !== data.light_color_temp) {
+                colorTempSlider.value = data.light_color_temp;
+            }
+        }
+        
+        // Обновление качества связи
+        if (lightLinkquality && data.light_linkquality !== undefined) {
+            lightLinkquality.textContent = data.light_linkquality;
+            const quality = data.light_linkquality;
+            lightLinkquality.style.color = 
+                quality > 200 ? '#28a745' : 
+                quality > 100 ? '#ffc107' : '#dc3545';
+        } 	
+
         // Системная информация
         if (data.system_info) {
             const systemInfo = data.system_info;

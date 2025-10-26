@@ -279,17 +279,23 @@ async def control_light():
     """Управление светом"""
     try:
         new_state = "ON" if not garage_state["light_on"] else "OFF"
-        brightness = 255 if new_state == "ON" else 0
-        
+
+        # ИСПРАВЛЕНО: Используем последнюю установленную яркость вместо 255
+        brightness = garage_state["light_brightness"] if new_state == "ON" else 0
+
+        # Если яркость 0 при включении, устанавливаем разумное значение по умолчанию
+        if new_state == "ON" and brightness == 0:
+            brightness = 128  # 50% яркости по умолчанию
+
         # Отправляем команду в Zigbee2MQTT
         mqtt_client.publish(
-            "zigbee2mqtt/smart_bulb/set",  # ИЗМЕНИТЕ НА smart_bulb
+            "zigbee2mqtt/smart_bulb/set",
             json.dumps({
                 "state": new_state,
                 "brightness": brightness
             })
         )
-        
+
         return {
             "status": "success",
             "light_on": new_state == "ON",
@@ -308,11 +314,14 @@ async def control_light_brightness(request: BrightnessRequest):
         if brightness < 0 or brightness > 255:
             return {"status": "error", "message": "Яркость должна быть от 0 до 255"}
             
+        # ИСПРАВЛЕНО: Включаем свет только если он был выключен и устанавливаем яркость
+        should_turn_on = not garage_state["light_on"] and brightness > 0
+        
         # Отправляем команду в Zigbee2MQTT
         mqtt_client.publish(
-            "zigbee2mqtt/smart_bulb/set",  # ИЗМЕНИТЕ НА smart_bulb
+            "zigbee2mqtt/smart_bulb/set",
             json.dumps({
-                "state": "ON" if brightness > 0 else "OFF",
+                "state": "ON" if should_turn_on else ("ON" if garage_state["light_on"] else "OFF"),
                 "brightness": brightness
             })
         )
@@ -320,7 +329,7 @@ async def control_light_brightness(request: BrightnessRequest):
         return {
             "status": "success",
             "brightness": brightness,
-            "light_on": brightness > 0,
+            "light_on": brightness > 0 or garage_state["light_on"],
             "message": f"Яркость установлена на {round((brightness / 255) * 100)}%"
         }
     except Exception as e:
