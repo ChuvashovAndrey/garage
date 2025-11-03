@@ -46,3 +46,5 @@ devices:
     friendly_name: motion_sensor
   '0xa4c1380c1cd5dd3c':
     friendly_name: smart_bulb
+  '0x9035eafffe6141ea':
+    friendly_name: vibration_sensor
